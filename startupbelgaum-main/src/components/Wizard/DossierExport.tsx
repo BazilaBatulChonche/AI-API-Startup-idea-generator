@@ -1,0 +1,1056 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  FileText,
+  Download,
+  Check,
+  FolderHeart,
+  Sparkles,
+  ArrowLeft,
+  TrendingUp,
+  ShieldCheck,
+  CheckCircle2,
+  Layers,
+  IndianRupee,
+  MapPin,
+  Scale,
+  Users,
+  Award,
+  Rocket,
+  Milestone,
+  X,
+  Mail,
+  BarChart3,
+  Coins,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+} from "recharts";
+import { StartupProject, User } from "@/types";
+import { saveProjectToVault } from "@/lib/storage";
+import { SeekFundingModal } from "../Dashboard/SeekFundingModal";
+import { InvestmentModal } from "../Investor/InvestmentModal";
+
+interface DossierExportProps {
+  project: StartupProject;
+  currentUser?: User | null;
+  onRestart: () => void;
+  onProjectSaved: () => void;
+  onBack: () => void;
+  onOpenCompare?: () => void;
+  cameFromInvestorHub?: boolean;
+}
+
+export const DossierExport: React.FC<DossierExportProps> = ({
+  project,
+  currentUser,
+  onRestart,
+  onProjectSaved,
+  onBack,
+  onOpenCompare,
+  cameFromInvestorHub = false,
+}) => {
+  const [saved, setSaved] = useState(false);
+  const [isFundingModalOpen, setIsFundingModalOpen] = useState(false);
+  const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
+  const [currentActiveProject, setCurrentActiveProject] = useState<StartupProject>(project);
+
+  const isInvestorUser = currentUser?.role === "investor" || cameFromInvestorHub;
+
+  const fundingAsk = currentActiveProject.fundingAsk?.seekingFunding
+    ? currentActiveProject.fundingAsk
+    : {
+        seekingFunding: true,
+        targetFundingAmount: currentActiveProject.validation?.tam?.value?.includes("B") ? "₹1,00,00,000" : "₹50,00,000",
+        equityOffered: "10% Equity",
+        fundingStage: "Pre-Seed (SAFE)",
+        useOfFunds: "MVP sprint engineering, initial 1,000 customer acquisition, and 18-month cloud runway",
+        pitchNotes: "Seeking institutional pre-seed backing to launch MVP sprint",
+      };
+
+  const { selectedIdea, validation, feasibility, founderProfile } = currentActiveProject;
+  const loc = currentActiveProject.targetLocation || founderProfile.targetLocation;
+
+  const handleSaveToVault = () => {
+    const activeUsername = currentActiveProject.username || currentUser?.username;
+    const activeUserId = currentActiveProject.userId || currentUser?.id || currentUser?._id;
+    const enrichedProject: StartupProject = {
+      ...currentActiveProject,
+      username: activeUsername,
+      userId: activeUserId,
+    };
+    saveProjectToVault(enrichedProject, currentUser);
+    setSaved(true);
+    onProjectSaved();
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handlePrint = () => {
+    const originalTitle = document.title;
+    // Temporarily clear title so browser print header only shows date/time without the website name
+    document.title = " ";
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
+  return (
+    <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      {/* Top Toolbar (Hidden when printing) */}
+      <div className="no-print rounded-3xl p-5 sm:p-6 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-5 bg-white shadow-sm relative overflow-hidden">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#243d78] border border-blue-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <FileText className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Institutional Venture Memorandum</h2>
+              <span className="text-[10px] uppercase font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1 font-mono">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" /> 14-Stage Verified
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 mt-0.5">Export, preserve in Cloud Vault, compare concepts, or download print-ready venture memo</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {isInvestorUser ? (
+            <button
+              onClick={onBack}
+              className="px-3.5 py-2.5 rounded-xl bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-50 transition text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Return to Investor Dealflow"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>← Return to Dealflow</span>
+            </button>
+          ) : (
+            <button
+              onClick={onBack}
+              className="px-3.5 py-2.5 rounded-xl bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+          )}
+
+          {onOpenCompare && (
+            <button
+              onClick={onOpenCompare}
+              className="px-3.5 py-2.5 rounded-xl bg-white text-[#243d78] border border-blue-200 hover:bg-blue-50 transition text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+            >
+              <Scale className="w-3.5 h-3.5 text-[#243d78]" />
+              <span>Compare Ideas</span>
+            </button>
+          )}
+
+          {isInvestorUser ? (
+            <button
+              onClick={() => setIsInvestModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-bold text-xs shadow-sm border border-[#12224d] transition flex items-center gap-1.5 cursor-pointer"
+              title="Express investment interest or submit a soft commitment to this founder"
+            >
+              <Coins className="w-3.5 h-3.5 text-blue-200" />
+              <span>🤝 Express Interest / Invest</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsFundingModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-bold text-xs shadow-sm border border-[#12224d] transition flex items-center gap-1.5 cursor-pointer"
+              title="Configure launch funding needs and toggle visibility on the Investor Dealflow Hub"
+            >
+              <Coins className="w-3.5 h-3.5 text-blue-200" />
+              <span>
+                {currentActiveProject.isPublishedForInvestors || currentActiveProject.fundingAsk?.seekingFunding
+                  ? "⚡ Published for Investors"
+                  : "⚡ Seek Launch Funding"}
+              </span>
+            </button>
+          )}
+
+          <button
+            onClick={handleSaveToVault}
+            className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all duration-200 flex items-center gap-2 shadow-sm ${
+              saved
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                : "bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+            }`}
+            title="Save this report to your portfolio for quick access anytime"
+          >
+            <FolderHeart className="w-3.5 h-3.5" />
+            <span>{saved ? "✓ Saved to My Reports!" : "Save Report"}</span>
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="px-5 py-2.5 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-semibold text-xs shadow-sm border border-[#12224d] transition flex items-center gap-1.5 cursor-pointer"
+            title="Download report as PDF or send to printer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download PDF / Print</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Printable Dossier Container */}
+      <div className="print-page rounded-3xl p-6 sm:p-10 border border-slate-200 space-y-10 shadow-sm bg-white text-slate-800 relative overflow-hidden">
+        {/* Cover Header */}
+        <div className="border-b border-slate-200 pb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-mono font-bold text-[#243d78] uppercase tracking-widest bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                CONFIDENTIAL VENTURE MEMO
+              </span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-500 font-medium">{selectedIdea.domain}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-500 font-mono">{new Date(project.createdAt).toLocaleDateString()}</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              {selectedIdea.name}
+            </h1>
+            <p className="text-sm sm:text-base text-slate-600 font-medium max-w-2xl leading-relaxed">
+              {selectedIdea.tagline}
+            </p>
+
+            {/* Target Location & Founder Email Badge */}
+            <div className="pt-1.5 flex items-center gap-2 flex-wrap text-xs text-slate-600">
+              {loc && (
+                <>
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <span className="font-semibold text-slate-900">{loc.city}, {loc.country}</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px] font-mono font-bold">
+                    Ecosystem Score {loc.ecosystemScore}/100
+                  </span>
+                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-500 text-[11px] font-mono">{loc.talentIndex} Talent</span>
+                </>
+              )}
+              {project.founderProfile?.founderEmail && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="flex items-center gap-1 text-[#243d78] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 text-[11px] font-mono">
+                    <Mail className="w-3 h-3 text-[#243d78]" />
+                    <span>{project.founderProfile.founderEmail}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Feasibility Verdict Pill */}
+          <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 text-center flex sm:flex-col items-center justify-between gap-4 sm:gap-2 flex-shrink-0 shadow-sm">
+            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Viability Index</div>
+            <div className="text-3xl sm:text-4xl font-black text-emerald-700 font-mono tracking-tight">{feasibility.overallScore}<span className="text-xs text-slate-400">/100</span></div>
+            <div className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+              {feasibility.verdict}
+            </div>
+          </div>
+        </div>
+
+        {/* Executive Launch Funding & Investor Terms */}
+        {isInvestorUser ? (
+          <div className="p-6 rounded-3xl bg-slate-50 border border-blue-200 shadow-sm text-left space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-blue-50 text-[#243d78] font-extrabold text-xs border border-blue-200 flex items-center gap-1.5 shadow-sm">
+                    <Coins className="w-3.5 h-3.5 text-[#243d78]" />
+                    <span>FOUNDER CAPITAL REQUIREMENT &amp; ROUND TERMS</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">14-Stage Institutional Diligence</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-2 flex items-center gap-3 flex-wrap">
+                  <span className="text-emerald-700 font-mono">{fundingAsk.targetFundingAmount}</span>
+                  <span className="text-sm font-semibold text-slate-600">
+                    seeking {fundingAsk.equityOffered} ({fundingAsk.fundingStage})
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
+                  <strong className="text-[#243d78] font-semibold">Planned Runway &amp; Allocation:</strong> {fundingAsk.useOfFunds}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsInvestModalOpen(true)}
+                  className="px-5 py-3 rounded-2xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-extrabold text-xs shadow-sm border border-[#12224d] transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Coins className="w-4 h-4 text-blue-200" />
+                  <span>🤝 Express Interest in this Startup</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Due Diligence KPI Strip for Investor */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200">
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-[10px] text-slate-500 block font-semibold">TAM Market Size</span>
+                <span className="text-sm font-bold text-slate-900">{validation.tam.value}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-[10px] text-slate-500 block font-semibold">Unit Economics (LTV:CAC)</span>
+                <span className="text-sm font-bold text-[#243d78]">{feasibility.revenueModel?.keyUnitEconomics?.ltvCacRatio || "5.8x"}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-[10px] text-slate-500 block font-semibold">Gross Margin</span>
+                <span className="text-sm font-bold text-indigo-700">{feasibility.revenueModel?.keyUnitEconomics?.grossMargin || "80%"}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-[10px] text-slate-500 block font-semibold">MVP Cloud Burn</span>
+                <span className="text-sm font-bold text-amber-700">{feasibility.cloudArchitecture?.estimatedMonthlyCloudCost?.mvp || "₹15,000/mo"}</span>
+              </div>
+            </div>
+
+            {/* Founder verification details */}
+            <div className="pt-2 flex items-center justify-between text-xs text-slate-600 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span>Founder: <strong className="text-slate-900">{currentActiveProject.username || "Verified Founder"}</strong></span>
+                <span>·</span>
+                <span>Email: <strong className="text-[#243d78] font-mono">{founderProfile?.founderEmail || "founder@startupgen.ai"}</strong></span>
+                {loc && (
+                  <>
+                    <span>·</span>
+                    <span>Location: <strong className="text-slate-900">{loc.city}, {loc.country}</strong></span>
+                  </>
+                )}
+              </div>
+              <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Viability Index: {feasibility.overallScore}/100 ({feasibility.verdict})</span>
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase font-bold text-[#243d78] tracking-wider flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5" />
+                  Launch Capital Requirements &amp; Investor Terms
+                </span>
+                {currentActiveProject.isPublishedForInvestors || currentActiveProject.fundingAsk?.seekingFunding ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    <span>Published to Investor Dealflow</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold border border-slate-200">
+                    Private / Confidential to Founder
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600">
+                {currentActiveProject.fundingAsk?.seekingFunding
+                  ? `Seeking ${currentActiveProject.fundingAsk.targetFundingAmount} · ${currentActiveProject.fundingAsk.equityOffered} (${currentActiveProject.fundingAsk.fundingStage})`
+                  : "Need funding to build this MVP and launch? Configure your target funding and allow angel investors to view this deal."}
+              </p>
+              {currentActiveProject.fundingAsk?.useOfFunds && (
+                <p className="text-[11px] text-slate-500 italic">
+                  Use of funds: &quot;{currentActiveProject.fundingAsk.useOfFunds}&quot;
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFundingModalOpen(true)}
+              className="no-print px-4 py-2 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-bold text-xs shadow-sm border border-[#12224d] transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer self-start sm:self-center"
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>
+                {currentActiveProject.isPublishedForInvestors || currentActiveProject.fundingAsk?.seekingFunding
+                  ? "Edit Investor Terms"
+                  : "⚡ Seek Launch Funding & Allow for Investors"}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Section 1: Problem-Solution Fit */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> 1. Executive Problem & Solution Architecture
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">The Acute Market Problem</div>
+              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">{selectedIdea.problemStatement}</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-blue-50/40 border border-blue-200 space-y-2">
+              <div className="text-xs font-bold text-[#243d78] uppercase tracking-wider">The AI (Artificial Intelligence) + Cloud Solution</div>
+              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">{selectedIdea.solution}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Target Buyer Persona</span>
+              <div className="text-slate-900 font-medium">{selectedIdea.targetPersona.title}</div>
+              <div className="text-emerald-700 font-semibold pt-1">Willingness to Pay: {selectedIdea.targetPersona.willingnessToPay}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Timing Catalyst (Why Now)</span>
+              <div className="text-slate-700">{selectedIdea.whyNow}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Defensible Innovation Moat</span>
+              <div className="text-slate-700">{selectedIdea.innovationMoat}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Market Opportunity & API Signals */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" /> 2. Market Sizing, Growth Funnel &amp; Customer Segments
+            </h2>
+            <span className="text-[11px] text-slate-500 font-medium">Verified Demand Telemetry</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 uppercase font-bold">TAM (Total Addressable Market)</span>
+                <span className="text-[10px] text-[#243d78] font-mono">100% Total</span>
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">{validation.tam.value}</div>
+              <p className="text-[11px] text-slate-600 leading-snug">{validation.tam.description}</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-blue-200 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[#243d78] uppercase font-bold">SAM (Serviceable Addressable)</span>
+                <span className="text-[10px] text-[#243d78] font-mono">Current Tech</span>
+              </div>
+              <div className="text-2xl font-extrabold text-[#243d78]">{validation.sam.value}</div>
+              <p className="text-[11px] text-slate-600 leading-snug">{validation.sam.description}</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-emerald-200 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-emerald-700 uppercase font-bold">SOM (Serviceable Obtainable)</span>
+                <span className="text-[10px] text-emerald-700 font-mono font-bold">🎯 3-Yr Goal</span>
+              </div>
+              <div className="text-2xl font-extrabold text-emerald-700">{validation.som.value}</div>
+              <p className="text-[11px] text-slate-600 leading-snug font-medium">{validation.som.description}</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-indigo-200 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-indigo-700 uppercase font-bold">CAGR (Annual Growth Rate)</span>
+                <span className="text-[10px] text-indigo-700 font-mono">Annual</span>
+              </div>
+              <div className="text-2xl font-extrabold text-indigo-700">{validation.cagr}</div>
+              <p className="text-[11px] text-slate-600 leading-snug">High velocity industry expansion rate</p>
+            </div>
+          </div>
+
+          {/* Customer Segments Priority Breakdown */}
+          {validation.targetSegments && validation.targetSegments.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-2.5">Customer Segment</th>
+                    <th className="px-4 py-2.5">Market Share</th>
+                    <th className="px-4 py-2.5">Urgency</th>
+                    <th className="px-4 py-2.5">Sales Cycle</th>
+                    <th className="px-4 py-2.5 text-emerald-700">Recommended Focus</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {validation.targetSegments.map((seg, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2.5 font-bold text-slate-900">{seg.segment}</td>
+                      <td className="px-4 py-2.5 font-mono text-emerald-700">{seg.sizeShare}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            seg.urgency === "Critical"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : seg.urgency === "High"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-blue-50 text-[#243d78] border-blue-200"
+                          }`}
+                        >
+                          {seg.urgency}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-600">{seg.salesCycle}</td>
+                      <td className="px-4 py-2.5 text-emerald-700 font-medium">
+                        {seg.urgency === "Critical" || seg.salesCycle.includes("week")
+                          ? "🎯 Beachhead (Target First)"
+                          : "Scale Segment"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {validation.regionalMarketDynamics && (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed">
+              <strong className="text-emerald-700">Regional Ecosystem Dynamics: </strong>
+              {validation.regionalMarketDynamics}
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Competitive Differentiation & Battlecard */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" /> 3. Competitive Landscape &amp; Defensibility Matrix
+            </h2>
+            <span className="text-[11px] text-[#243d78] font-medium">
+              Moat: {selectedIdea.innovationMoat || "Architectural Advantage"}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 uppercase text-[10px]">
+                <tr>
+                  <th className="px-4 py-2.5">Competitor</th>
+                  <th className="px-4 py-2.5">Type</th>
+                  <th className="px-4 py-2.5 text-slate-500">Their Vulnerability</th>
+                  <th className="px-4 py-2.5 text-emerald-700">Our Strategic Superpower</th>
+                  <th className="px-4 py-2.5">Scale / Funding</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {validation.competitors.map((c, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2.5 font-bold text-slate-900 whitespace-nowrap">{c.name}</td>
+                    <td className="px-4 py-2.5">
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          c.type === "Direct"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-blue-50 text-[#243d78] border-blue-200"
+                        }`}
+                      >
+                        {c.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600">{c.weaknesses}</td>
+                    <td className="px-4 py-2.5 text-emerald-700 font-semibold">{c.ourDifferentiation}</td>
+                    <td className="px-4 py-2.5 text-slate-500 text-[11px]">{c.fundingOrScale}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Competitor Feature Comparison Battlecard (if available) */}
+          {validation.competitorComparisonMatrix && (() => {
+            const totalFeatures = validation.competitorComparisonMatrix.features.length || 1;
+            const compChartData = [
+              {
+                name: `${selectedIdea.name} (Our Product)`,
+                coverage: 100,
+                supportedCount: totalFeatures,
+                total: totalFeatures,
+                isOurProduct: true,
+                color: "#243d78",
+              },
+              ...validation.competitorComparisonMatrix.competitors.map((c, cIdx) => {
+                let count = 0;
+                validation.competitorComparisonMatrix!.features.forEach((feat) => {
+                  const val = c.scores[feat];
+                  if (val === true) count += 1;
+                  else if (typeof val === "string" && val.toLowerCase() !== "false" && val.toLowerCase() !== "no") count += 0.5;
+                });
+                const pct = Math.min(100, Math.round((count / totalFeatures) * 100));
+                const colors = ["#64748b", "#94a3b8", "#cbd5e1", "#0284c7"];
+                return {
+                  name: c.name.split("(")[0].trim(),
+                  coverage: pct,
+                  supportedCount: Math.round(count * 10) / 10,
+                  total: totalFeatures,
+                  isOurProduct: false,
+                  color: colors[cIdx % colors.length],
+                };
+              }),
+            ];
+
+            return (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-[#243d78]" /> Competitive Capability Coverage &amp; Moat Index
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    ✨ 100% Native Architecture
+                  </span>
+                </div>
+
+                {/* Capability Comparison Bar Chart */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="h-44 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={compChartData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                        <XAxis
+                          type="number"
+                          domain={[0, 100]}
+                          stroke="#94a3b8"
+                          tickFormatter={(v) => `${v}%`}
+                          tick={{ fill: "#475569", fontSize: 10 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          stroke="#94a3b8"
+                          width={140}
+                          tick={{ fill: "#334155", fontSize: 10 }}
+                        />
+                        <Tooltip
+                          formatter={(val: any, _name: any, item: any) => [
+                            `${val}% (${item.payload.supportedCount}/${item.payload.total} capabilities supported)`,
+                            "Capability Coverage",
+                          ]}
+                          contentStyle={{
+                            backgroundColor: "#ffffff",
+                            borderColor: "#cbd5e1",
+                            borderRadius: "0.5rem",
+                            fontSize: "11px",
+                            color: "#0f172a",
+                          }}
+                        />
+                        <Bar dataKey="coverage" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                          {compChartData.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.color}
+                              stroke={entry.isOurProduct ? "#12224d" : undefined}
+                              strokeWidth={entry.isOurProduct ? 1.5 : 0}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-2.5 font-semibold">Key Capability / Architecture</th>
+                        <th className="px-4 py-2.5 font-bold text-[#243d78] bg-blue-50/50">
+                          {selectedIdea.name} (Our Product)
+                        </th>
+                        {validation.competitorComparisonMatrix.competitors.map((c, i) => (
+                          <th key={i} className="px-4 py-2.5 font-semibold text-slate-600">
+                            {c.name.split("(")[0].trim()}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {validation.competitorComparisonMatrix.features.map((feat, fIdx) => (
+                        <tr key={fIdx}>
+                          <td className="px-4 py-2 font-medium text-slate-900">{feat}</td>
+                          <td className="px-4 py-2 font-bold text-emerald-700 bg-emerald-50/30">
+                            <span className="inline-flex items-center gap-1 text-[11px]">
+                              <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Native Support
+                            </span>
+                          </td>
+                          {validation.competitorComparisonMatrix?.competitors.map((c, cIdx) => {
+                            const val = c.scores[feat];
+                            return (
+                              <td key={cIdx} className="px-4 py-2 text-slate-600">
+                                {typeof val === "boolean" ? (
+                                  val ? (
+                                    <span className="inline-flex items-center text-emerald-700 gap-1">
+                                      <Check className="w-3.5 h-3.5" /> Yes
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-rose-600 gap-1">
+                                      <X className="w-3.5 h-3.5" /> No
+                                    </span>
+                                  )
+                                ) : (
+                                  <span>{val}</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Section 4: Target User Persona & Buying Journey */}
+        {validation.targetUserAnalysis && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+              <Users className="w-4 h-4" /> 4. Target User Persona, Buying Journey &amp; CAC (Customer Acquisition Cost)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Primary Buyer Persona</span>
+                <div className="text-slate-900 font-bold text-sm">{validation.targetUserAnalysis.personaName}</div>
+                <div className="text-slate-700">{validation.targetUserAnalysis.roleTitle}</div>
+                <div className="text-slate-500">{validation.targetUserAnalysis.organizationType}</div>
+                <div className="text-emerald-700 pt-1 font-semibold">
+                  Budget: {validation.targetUserAnalysis.willingnessToPayRange}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-rose-700">Acute Customer Pain Points</span>
+                <ul className="space-y-1.5 text-slate-700">
+                  {validation.targetUserAnalysis.acutePainPoints.map((p, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">✕</span>
+                      <span className="line-clamp-2">{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-emerald-700">Top Acquisition Channels &amp; Target CAC</span>
+                <ul className="space-y-2 text-slate-700">
+                  {validation.targetUserAnalysis.acquisitionChannels.map((ch, i) => (
+                    <li key={i} className="flex items-center justify-between pt-1 border-b border-slate-200 pb-1 last:border-0">
+                      <div>
+                        <span className="text-slate-900 font-medium block">{ch.channel}</span>
+                        <span className="text-[10px] text-[#243d78]">{ch.effectiveness} ROI</span>
+                      </div>
+                      <span className="text-emerald-700 font-mono font-bold">CAC: {ch.estimatedCac}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Decision Makers & Long-Term Retention */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Buying Decision Makers</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {validation.targetUserAnalysis.decisionMakers.map((dm, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 text-[11px]">
+                      {dm}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase">Long-Term Retention Drivers</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {validation.targetUserAnalysis.retentionDrivers.map((rd, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px]">
+                      {rd}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section 5: Revenue Model & Unit Economics */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2">
+            <IndianRupee className="w-4 h-4" /> 5. Revenue Model &amp; Unit Economics
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 text-[10px] uppercase font-semibold">CAC (Customer Acquisition Cost)</span>
+              <div className="text-sm font-bold text-slate-900 mt-0.5">{feasibility.revenueModel.keyUnitEconomics.cacEstimate}</div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 text-[10px] uppercase font-semibold">LTV (Customer Lifetime Value)</span>
+              <div className="text-sm font-bold text-emerald-700 mt-0.5">{feasibility.revenueModel.keyUnitEconomics.ltvEstimate}</div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 text-[10px] uppercase font-semibold">LTV : CAC Ratio</span>
+              <div className="text-sm font-bold text-[#243d78] mt-0.5">{feasibility.revenueModel.keyUnitEconomics.ltvCacRatio}</div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 text-[10px] uppercase font-semibold">Gross Margin</span>
+              <div className="text-sm font-bold text-indigo-700 mt-0.5">{feasibility.revenueModel.keyUnitEconomics.grossMargin}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 6: Cloud Architecture & APIs */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+            <Layers className="w-4 h-4" /> 6. Cloud Architecture Blueprint &amp; API (Application Programming Interface) Integrations
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Cloud Provider & Compute</span>
+              <div className="text-slate-900 font-medium">{feasibility.cloudArchitecture.recommendedProvider}</div>
+              <div className="text-slate-600 text-[11px]">{feasibility.cloudArchitecture.compute}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Database & Vector Storage</span>
+              <div className="text-slate-900 font-medium">{feasibility.cloudArchitecture.database}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <span className="text-slate-500 font-semibold block">Monthly Cloud Run-Rate — MVP (Minimum Viable Product)</span>
+              <div className="text-emerald-700 font-bold text-base">{feasibility.cloudArchitecture.estimatedMonthlyCloudCost.mvp}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 7: AI Scoring Engine Breakdown */}
+        {feasibility.scoringEngine && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+              <Award className="w-4 h-4" /> 7. AI (Artificial Intelligence) Scoring Engine Breakdown (Score: {feasibility.scoringEngine.viabilityScore}/100)
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+              {feasibility.scoringEngine.factors.map((f) => (
+                <div key={f.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1">
+                  <span className="text-[10px] text-slate-500 block truncate">{f.name}</span>
+                  <div className="text-lg font-black text-emerald-700">{f.score}%</div>
+                  <div className="text-[9px] text-slate-500">Weight: {f.weight}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Section 8: MVP Recommendation & Sprint Plan */}
+        {feasibility.mvpRecommendation && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+                <Rocket className="w-4 h-4" /> 8. MVP (Minimum Viable Product) Recommendation, MoSCoW Scope &amp; Execution Sprint Plan
+              </h2>
+              <span className="text-[11px] text-[#243d78] font-semibold">
+                {feasibility.mvpRecommendation.timelineWeeks} Weeks to Production Launch
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div>
+                  <span className="font-bold text-slate-900 text-sm block">{feasibility.mvpRecommendation.mvpName}</span>
+                  <p className="text-slate-600 text-[11px] mt-0.5">{feasibility.mvpRecommendation.coreValueProposition}</p>
+                </div>
+                {(() => {
+                  const tf = (feasibility.mvpRecommendation.timeframe || project.founderProfile.timeframe || "").toLowerCase();
+                  const is2W = tf.includes("2-week") || tf.includes("2 week") || tf.includes("14") || feasibility.mvpRecommendation.timelineWeeks === 2;
+                  const is30D = tf.includes("30-day") || tf.includes("30 day") || tf.includes("4-week") || tf.includes("4 week") || feasibility.mvpRecommendation.timelineWeeks === 4;
+                  const is6M = tf.includes("6 month") || tf.includes("enterprise") || tf.includes("24 week") || tf.includes("180") || feasibility.mvpRecommendation.timelineWeeks === 24;
+                  const targetText = is2W ? "14 Days to Launch" : is30D ? "30 Days to Cashflow" : is6M ? "180 Days to Staging" : "60-90 Days to Beta";
+                  return (
+                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 text-[11px] flex-shrink-0">
+                      Target: {targetText}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* MoSCoW Scope Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-white border-2 border-emerald-500 space-y-1.5 shadow-sm">
+                  <span className="text-[10px] font-bold uppercase text-emerald-700 block">Must-Have (Day 1 Essential)</span>
+                  <ul className="space-y-1 text-slate-800 text-[11px]">
+                    {feasibility.mvpRecommendation.featureBacklog.mustHave.map((f, i) => (
+                      <li key={i} className="flex items-start gap-1.5">
+                        <Check className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-3 rounded-lg bg-white border border-blue-200 space-y-1.5 shadow-sm">
+                  <span className="text-[10px] font-bold uppercase text-[#243d78] block">Should-Have (Sprint 2 Retention)</span>
+                  <ul className="space-y-1 text-slate-700 text-[11px]">
+                    {feasibility.mvpRecommendation.featureBacklog.shouldHave.map((f, i) => (
+                      <li key={i} className="flex items-start gap-1.5">
+                        <span className="text-[#243d78]">•</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5 shadow-sm">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 block">Could-Have (Future Backlog)</span>
+                  <ul className="space-y-1 text-slate-500 text-[11px]">
+                    {feasibility.mvpRecommendation.featureBacklog.couldHave.map((f, i) => (
+                      <li key={i} className="flex items-start gap-1.5">
+                        <span className="text-slate-400">•</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Phased Sprint Plan */}
+              <div className={`grid gap-2 pt-2 border-t border-slate-200 ${
+                feasibility.mvpRecommendation.fourWeekSprintPlan.length <= 2
+                  ? "grid-cols-1 sm:grid-cols-2"
+                  : feasibility.mvpRecommendation.fourWeekSprintPlan.length === 3
+                  ? "grid-cols-1 sm:grid-cols-3"
+                  : "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+              }`}>
+                {feasibility.mvpRecommendation.fourWeekSprintPlan.map((sp) => (
+                  <div key={sp.week} className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-sm">
+                    <span className="text-[10px] text-[#243d78] font-bold block">{sp.periodLabel || `Week 0${sp.week}`}</span>
+                    <div className="text-slate-900 font-medium text-[11px] truncate">{sp.title}</div>
+                    <div className="text-slate-500 text-[10px] line-clamp-2">{sp.deliverable}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section 9: 12-Month Business Roadmap */}
+        {feasibility.businessRoadmap && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+                <Milestone className="w-4 h-4" /> 9. 12-Month Phased Business Roadmap &amp; Financing Targets
+              </h2>
+              <span className="text-[11px] text-[#243d78] font-semibold">4 Sequenced Growth Phases</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {feasibility.businessRoadmap.phases.map((ph) => (
+                <div key={ph.phase} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-sm">Phase 0{ph.phase}: {ph.title}</span>
+                    <span className="text-[10px] text-[#243d78] font-semibold px-2 py-0.5 rounded bg-blue-50 border border-blue-200">
+                      {ph.timeframe}
+                    </span>
+                  </div>
+                  <ul className="space-y-1 text-slate-700 text-[11px]">
+                    {ph.milestones.map((m, mi) => (
+                      <li key={mi} className="flex items-start gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-[#243d78] flex-shrink-0 mt-0.5" />
+                        <span>{m}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Target KPIs (Key Performance Indicators):</span>
+                    <span className="text-slate-900 font-mono font-medium">{ph.keyMetrics}</span>
+                  </div>
+                  <div className="text-emerald-700 text-[11px] font-semibold flex items-center gap-1">
+                    <span>Funding Goal:</span>
+                    <span className="text-slate-900">{ph.fundingGoal}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Section 10: Actionable Founder Next Steps */}
+        <div className="space-y-3 pt-2">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[#243d78] flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" /> 10. Immediate 14-Day Founder Validation Plan
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {feasibility.goNextSteps.map((step, idx) => (
+              <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-blue-50 text-[#243d78] font-bold flex items-center justify-center flex-shrink-0 text-[11px] border border-blue-200">
+                  {idx + 1}
+                </span>
+                <span className="text-slate-700">{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+          <div>Generated by AI (Artificial Intelligence) + API (Application Programming Interface) + Cloud Startup Validator Engine</div>
+          <div>Confidential & Proprietary Institutional Founder Report</div>
+        </div>
+      </div>
+
+      {/* Restart Button (Hidden when printing) */}
+      <div className="no-print flex justify-center pt-4 gap-3">
+        {onOpenCompare && (
+          <button
+            onClick={onOpenCompare}
+            className="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-[#243d78] font-semibold text-sm border border-blue-200 shadow-sm transition flex items-center gap-2"
+          >
+            <Scale className="w-4 h-4" />
+            <span>Compare with Other Ideas</span>
+          </button>
+        )}
+        {isInvestorUser ? (
+          <button
+            onClick={onBack}
+            className="px-6 py-3 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-bold text-sm shadow-sm border border-[#12224d] transition flex items-center gap-2 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-blue-200" />
+            <span>← Return to Investor Dealflow</span>
+          </button>
+        ) : (
+          <button
+            onClick={onRestart}
+            className="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 transition text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-sm"
+          >
+            <Sparkles className="w-4 h-4 text-[#243d78]" />
+            <span>Validate Another Startup Idea</span>
+          </button>
+        )}
+      </div>
+
+      {/* Seek Funding Modal (Founder only) */}
+      {isFundingModalOpen && (
+        <SeekFundingModal
+          isOpen={isFundingModalOpen}
+          onClose={() => setIsFundingModalOpen(false)}
+          project={currentActiveProject}
+          currentUser={currentUser}
+          onProjectUpdated={(updatedProject) => {
+            setCurrentActiveProject(updatedProject);
+            setIsFundingModalOpen(false);
+            onProjectSaved();
+          }}
+        />
+      )}
+
+      {/* Investment Interest Modal (Investor only) */}
+      {isInvestModalOpen && (
+        <InvestmentModal
+          isOpen={isInvestModalOpen}
+          onClose={() => setIsInvestModalOpen(false)}
+          project={currentActiveProject}
+          currentUser={currentUser}
+        />
+      )}
+    </div>
+  );
+};

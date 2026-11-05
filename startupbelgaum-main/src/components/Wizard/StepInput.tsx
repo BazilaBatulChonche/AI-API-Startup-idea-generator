@@ -1,0 +1,1029 @@
+import React, { useState, useMemo } from "react";
+import {
+  Sparkles,
+  ArrowRight,
+  Compass,
+  Rocket,
+  IndianRupee,
+  Users,
+  Clock,
+  Globe2,
+  Lightbulb,
+  Zap,
+  Coffee,
+  Package,
+  Factory,
+  Sprout,
+  HeartPulse,
+  Truck,
+  Store,
+  GraduationCap,
+  Leaf,
+  Cpu,
+  Check,
+  HardHat,
+  Mail,
+  HelpCircle,
+  MapPin,
+  Target,
+  ChevronRight,
+} from "lucide-react";
+import { FounderProfile, MapLocation, StartupIdea } from "@/types";
+import { GLOBAL_STARTUP_HUBS, DEFAULT_LOCATION } from "@/lib/location-data";
+import { BelagaviGoogleMap } from "@/components/BelagaviGoogleMap";
+import { BELAGAVI_LOCATION, BELAGAVI_AREAS, BELAGAVI_SECTORS, filterBelagaviCompetitors } from "@/lib/belagavi-data";
+
+interface StepInputProps {
+  onGenerate: (profile: FounderProfile) => void;
+  onDirectValidateIdea?: (idea: StartupIdea, profile: FounderProfile) => void;
+  isLoading: boolean;
+  initialProfile?: FounderProfile;
+  defaultEmail?: string;
+  onOpenHelp?: () => void;
+}
+
+const BUDGET_PRESETS = [
+  { label: "< ₹5 Lakhs", value: "< ₹5,00,000 (Bootstrapped Lean MVP)" },
+  { label: "₹5L - ₹25L", value: "₹5,00,000 - ₹25,00,000 (Angel Seed)" },
+  { label: "₹25L - ₹1 Crore", value: "₹25,00,000 - ₹1,00,00,000 (Pre-Seed Fund)" },
+  { label: "₹1 Crore+", value: "₹1,00,00,000+ (Institutional Venture)" },
+];
+
+const TIMEFRAME_OPTIONS = [
+  "1-3 Months Full Beta",
+  "30-Day Pilot Launch",
+  "2-Week Rapid MVP (Minimum Viable Product) Sprint",
+  "6 Months Enterprise Grade",
+];
+
+const INDUSTRY_CATEGORIES = [
+  {
+    id: "food",
+    label: "Food & Beverage",
+    domain: "Food & Beverage",
+    businessType: "Food & Beverage / Cafe",
+    badge: "Cafe & Dining",
+    icon: Coffee,
+    color: "hover:border-amber-400 hover:bg-amber-50/50",
+    activeColor: "border-amber-500 bg-amber-50 text-amber-900",
+    exampleProblem: "Specialty single-origin micro-roastery cafe chain with whole-bean monthly doorstep subscription club",
+    skills: "Culinary Operations, Supply Chain & Hospitality",
+    audience: "Urban Professionals & Coffee Enthusiasts",
+  },
+  {
+    id: "d2c",
+    label: "D2C (Direct-to-Consumer)",
+    domain: "D2C (Direct-to-Consumer) Brands",
+    businessType: "Physical Products / D2C (Direct-to-Consumer)",
+    badge: "Consumer Products",
+    icon: Package,
+    color: "hover:border-pink-400 hover:bg-pink-50/50",
+    activeColor: "border-pink-500 bg-pink-50 text-pink-900",
+    exampleProblem: "100% biodegradable bamboo fiber everyday kitchenware and home essentials brand",
+    skills: "Product Design, Brand Marketing & Vendor Sourcing",
+    audience: "Eco-Conscious Millennial Households",
+  },
+  {
+    id: "manufacturing",
+    label: "Manufacturing & Hardware",
+    domain: "Manufacturing",
+    businessType: "Manufacturing & Hardware",
+    badge: "Hardware & Production",
+    icon: Factory,
+    color: "hover:border-blue-400 hover:bg-blue-50/50",
+    activeColor: "border-blue-500 bg-blue-50 text-blue-900",
+    exampleProblem: "Modular decentralized solar cold storage rooms for rural agricultural mandis to prevent crop rot",
+    skills: "Mechanical Engineering, Production Ops & Logistics",
+    audience: "Commercial Facilities, Mandi Traders & FPOs (Farmer Producer Organizations)",
+  },
+  {
+    id: "construction",
+    label: "Construction & Infra",
+    domain: "Construction & Infrastructure",
+    businessType: "Construction & Infrastructure",
+    badge: "Building & Materials",
+    icon: HardHat,
+    color: "hover:border-amber-400 hover:bg-amber-50/50",
+    activeColor: "border-amber-600 bg-amber-50 text-amber-900",
+    exampleProblem: "Factory-manufactured precast modular wall panels and turnkey commercial interior fit-out contracting company",
+    skills: "Civil Engineering, Site Contracting & Materials Supply",
+    audience: "Contractors, Commercial Developers & Property Owners",
+  },
+  {
+    id: "agriculture",
+    label: "Agriculture & Farming",
+    domain: "Agriculture",
+    businessType: "Agriculture & Green Ops",
+    badge: "Agri-Supply",
+    icon: Sprout,
+    color: "hover:border-emerald-400 hover:bg-emerald-50/50",
+    activeColor: "border-emerald-600 bg-emerald-50 text-emerald-900",
+    exampleProblem: "Vertical climate-controlled indoor hydroponic farm producing high-yield saffron and culinary microgreens",
+    skills: "Horticulture, Agribusiness & Farm Operations",
+    audience: "Luxury Hotels, Restaurants & Supermarkets",
+  },
+  {
+    id: "wellness",
+    label: "Healthcare & Wellness",
+    domain: "Healthcare & Wellness",
+    businessType: "Healthcare & Wellness",
+    badge: "Clinics & Studios",
+    icon: HeartPulse,
+    color: "hover:border-rose-400 hover:bg-rose-50/50",
+    activeColor: "border-rose-600 bg-rose-50 text-rose-900",
+    exampleProblem: "Boutique contrast recovery studio offering infrared saunas, cold plunge suites and pneumatic compression",
+    skills: "Physiotherapy, Wellness Operations & Studio Management",
+    audience: "Everyday Athletes, Gym-Goers & Stressed Executives",
+  },
+  {
+    id: "services",
+    label: "Physical Services",
+    domain: "Physical Services",
+    businessType: "Services & Operations",
+    badge: "Operations & Fleet",
+    icon: Truck,
+    color: "hover:border-yellow-400 hover:bg-yellow-50/50",
+    activeColor: "border-yellow-600 bg-yellow-50 text-yellow-900",
+    exampleProblem: "Waterless on-demand mobile EV fleet detailing and doorstep rapid maintenance vans",
+    skills: "Fleet Operations, Vendor Management & Dispatch",
+    audience: "Commercial Fleet Operators & Vehicle Owners",
+  },
+  {
+    id: "retail",
+    label: "Retail & Stores",
+    domain: "Retail",
+    businessType: "Retail & Storefront",
+    badge: "Stores & Experiences",
+    icon: Store,
+    color: "hover:border-teal-400 hover:bg-teal-50/50",
+    activeColor: "border-teal-600 bg-teal-50 text-teal-900",
+    exampleProblem: "Zero-waste packaging-free bulk grocery and natural detergent refill dispensary stores",
+    skills: "Retail Merchandising & Community Building",
+    audience: "Urban Apartment Dwellers & Zero-Waste Families",
+  },
+  {
+    id: "education",
+    label: "Education & Sports",
+    domain: "Offline Education",
+    businessType: "Offline Education & Sports",
+    badge: "Academies & Clubs",
+    icon: GraduationCap,
+    color: "hover:border-cyan-400 hover:bg-cyan-50/50",
+    activeColor: "border-cyan-600 bg-cyan-50 text-cyan-900",
+    exampleProblem: "Hands-on weekend robotics, 3D printing and electronics maker labs for K-12 students",
+    skills: "Curriculum Design, Coaching & Studio Operations",
+    audience: "Parents of K-12 Students & Progressive Schools",
+  },
+  {
+    id: "cleantech",
+    label: "CleanTech & Waste",
+    domain: "CleanTech & Waste Management",
+    businessType: "CleanTech & Green Ops",
+    badge: "Clean Energy",
+    icon: Leaf,
+    color: "hover:border-green-400 hover:bg-green-50/50",
+    activeColor: "border-green-600 bg-green-50 text-green-900",
+    exampleProblem: "Decentralized hydrometallurgical micro-hubs recovering pure copper and gold from discarded e-waste",
+    skills: "Chemical Engineering & Environmental Compliance",
+    audience: "Corporate IT Offices & Municipal Councils",
+  },
+  {
+    id: "tech",
+    label: "Tech & Software",
+    domain: "B2B (Business-to-Business) SaaS (Software as a Service) & Tech",
+    businessType: "Tech & Software",
+    badge: "Digital Platforms",
+    icon: Cpu,
+    color: "hover:border-indigo-400 hover:bg-indigo-50/50",
+    activeColor: "border-indigo-600 bg-indigo-50 text-indigo-900",
+    exampleProblem: "API (Application Programming Interface)-first automated real-time accounting audit and dynamic cashflow forecasting",
+    skills: "Full-Stack Dev, Machine Learning & Product",
+    audience: "Mid-Market SMBs (Small & Midsize Businesses) & B2B (Business-to-Business) Enterprise",
+  },
+  {
+    id: "others",
+    label: "Others / Custom",
+    domain: "Custom Industry & New Markets",
+    businessType: "Others",
+    badge: "Flexible Model",
+    icon: Sparkles,
+    color: "hover:border-purple-400 hover:bg-purple-50/50",
+    activeColor: "border-purple-600 bg-purple-50 text-purple-900",
+    exampleProblem: "Fragmented market inefficiencies and underserved customer segments seeking modern innovative alternatives",
+    skills: "Domain Expertise & Agile Execution",
+    audience: "Target Market Customers & Specialized Segments",
+  },
+];
+
+export const StepInput: React.FC<StepInputProps> = ({
+  onGenerate,
+  onDirectValidateIdea,
+  isLoading,
+  initialProfile,
+  defaultEmail,
+  onOpenHelp,
+}) => {
+  // Founder's Email / Gmail
+  const [founderEmail, setFounderEmail] = useState<string>(
+    initialProfile?.founderEmail || defaultEmail || ""
+  );
+
+  // Selected category preset (empty by default)
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  // Business Type
+  const [businessType, setBusinessType] = useState<string>(
+    initialProfile?.businessType || ""
+  );
+
+  // Custom business model specification (when Others is selected)
+  const [customBusinessType, setCustomBusinessType] = useState<string>("");
+
+  // 1. Startup Concept or Problem Statement
+  const [customContext, setCustomContext] = useState<string>(
+    initialProfile?.customContext || ""
+  );
+
+  // Optional exact startup name
+  const [startupName, setStartupName] = useState<string>("");
+
+  // 2. Target Industry / Domains (comma-separated or text)
+  const [domainsInput, setDomainsInput] = useState<string>(
+    initialProfile?.domains?.join(", ") || ""
+  );
+
+  // 3. Founder Skills & Strengths
+  const [skillsInput, setSkillsInput] = useState<string>(
+    initialProfile?.skills?.join(", ") || ""
+  );
+
+  // 4. Initial Budget in Indian Rupees
+  const [budget, setBudget] = useState<string>(
+    initialProfile?.budget || ""
+  );
+
+  // 5. Target Customer Audience
+  const [targetAudience, setTargetAudience] = useState<string>(
+    initialProfile?.targetAudience || ""
+  );
+
+  // 6. Launch Timeframe
+  const [timeframe, setTimeframe] = useState<string>(
+    initialProfile?.timeframe || ""
+  );
+
+  // 7. Target Location / Hub - Defaults to Belagavi, Karnataka
+  const [targetLocation, setTargetLocation] = useState<MapLocation>(
+    initialProfile?.targetLocation || BELAGAVI_LOCATION
+  );
+  // 8. Particular Area / Locality in Belagavi
+  const [belagaviArea, setBelagaviArea] = useState<string>(
+    initialProfile?.targetArea || "Tilakwadi / Congress Rd"
+  );
+  const [customBelagaviArea, setCustomBelagaviArea] = useState<string>("");
+  const [showBelagaviMap, setShowBelagaviMap] = useState<boolean>(true);
+  const [sectorFilter, setSectorFilter] = useState<"belagavi" | "all">("belagavi");
+
+  const resolvedBelagaviArea = customBelagaviArea.trim() || belagaviArea;
+
+  const activeSectorKey = useMemo((): "food" | "education" | "healthcare" | "construction" => {
+    const combined = `${selectedCategory} ${domainsInput} ${businessType} ${customContext}`.toLowerCase();
+    if (combined.includes("education") || combined.includes("edtech") || combined.includes("school") || combined.includes("college") || combined.includes("academy") || combined.includes("tutoring") || combined.includes("coaching") || combined.includes("learning")) {
+      return "education";
+    }
+    if (combined.includes("health") || combined.includes("wellness") || combined.includes("clinic") || combined.includes("hospital") || combined.includes("medical") || combined.includes("diagnostic") || combined.includes("pharma") || combined.includes("care")) {
+      return "healthcare";
+    }
+    if (combined.includes("construct") || combined.includes("infra") || combined.includes("building") || combined.includes("real estate") || combined.includes("turnkey") || combined.includes("contract") || combined.includes("precast") || combined.includes("cement") || combined.includes("civil") || combined.includes("property")) {
+      return "construction";
+    }
+    return "food";
+  }, [selectedCategory, domainsInput, businessType, customContext]);
+
+  const getBelagaviSectorKey = (catId: string): "food" | "education" | "healthcare" | "construction" => {
+    if (catId === "food") return "food";
+    if (catId === "education") return "education";
+    if (catId === "wellness") return "healthcare";
+    if (catId === "construction") return "construction";
+    return activeSectorKey;
+  };
+
+  // Check if customContext matches another category preset while current selection differs
+  const matchingCategory = INDUSTRY_CATEGORIES.find(
+    (c) => c.exampleProblem.trim() === customContext.trim()
+  );
+  const hasMismatch = !!(matchingCategory && selectedCategory && matchingCategory.id !== selectedCategory);
+
+  const parseList = (str: string, fallback: string[]): string[] => {
+    const list = str
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return list.length > 0 ? list : fallback;
+  };
+
+  const handleSelectCategory = (cat: typeof INDUSTRY_CATEGORIES[0]) => {
+    if (selectedCategory === cat.id) {
+      setSelectedCategory("");
+      setDomainsInput("");
+      setBusinessType("");
+      setCustomBusinessType("");
+      setCustomContext("");
+      setSkillsInput("");
+      setTargetAudience("");
+      return;
+    }
+    setSelectedCategory(cat.id);
+    setDomainsInput(cat.domain);
+    setBusinessType(cat.businessType);
+    if (cat.id === "others") {
+      setCustomBusinessType("");
+    }
+    const isExistingPresetProblem = INDUSTRY_CATEGORIES.some(
+      (c) => c.exampleProblem.trim() === customContext.trim()
+    );
+    if (!customContext.trim() || isExistingPresetProblem) {
+      setCustomContext(cat.exampleProblem);
+    }
+    setSkillsInput(cat.skills);
+    setTargetAudience(cat.audience);
+  };
+
+  // Submit profile to synthesize tailored concepts
+  const handleGenerate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!domainsInput.trim()) {
+      alert("Please enter at least one target domain or industry.");
+      return;
+    }
+    const domains = parseList(domainsInput, ["Commercial Venture"]);
+    const skills = parseList(skillsInput, ["Business Operations & Execution"]);
+
+    const resolvedBusinessType = businessType === "Others"
+      ? (customBusinessType.trim() || "Others / Custom Model")
+      : (businessType || "Commercial Venture");
+
+    const finalArea = customBelagaviArea.trim() || belagaviArea;
+    const profile: FounderProfile = {
+      domains,
+      skills,
+      businessType: resolvedBusinessType,
+      interests: domains,
+      targetAudience: targetAudience.trim() || "Target Customers",
+      budget: budget.trim() || "₹5,00,000 - ₹25,00,000",
+      timeframe: timeframe.trim() || "1-3 Months Full Beta",
+      customContext: customContext.trim(),
+      targetArea: finalArea,
+      targetLocation: {
+        ...(targetLocation || BELAGAVI_LOCATION),
+        city: finalArea.includes("All") ? "Belagavi (Belgaum)" : `Belagavi (${finalArea})`,
+        keyHubs: [finalArea, ...(BELAGAVI_LOCATION.keyHubs || [])],
+      },
+      founderEmail: founderEmail.trim() || undefined,
+    };
+
+    onGenerate(profile);
+  };
+
+  // Directly validate exact idea if provided
+  const handleDirectValidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!domainsInput.trim() && !startupName.trim() && !customContext.trim()) {
+      alert("Please provide a Startup Name, Domain, or Problem Statement.");
+      return;
+    }
+    const domains = parseList(domainsInput, ["Commercial Venture"]);
+    const skills = parseList(skillsInput, ["Business Operations & Execution"]);
+
+    const resolvedBusinessType = businessType === "Others"
+      ? (customBusinessType.trim() || "Others / Custom Model")
+      : (businessType || "Commercial Venture");
+
+    const finalArea = customBelagaviArea.trim() || belagaviArea;
+    const profile: FounderProfile = {
+      domains,
+      skills,
+      businessType: resolvedBusinessType,
+      interests: domains,
+      targetAudience: targetAudience.trim() || "Target Customers",
+      budget: budget.trim() || "₹5,00,000 - ₹25,00,000",
+      timeframe: timeframe.trim() || "1-3 Months Full Beta",
+      customContext: customContext.trim(),
+      targetArea: finalArea,
+      targetLocation: {
+        ...(targetLocation || BELAGAVI_LOCATION),
+        city: finalArea.includes("All") ? "Belagavi (Belgaum)" : `Belagavi (${finalArea})`,
+        keyHubs: [finalArea, ...(BELAGAVI_LOCATION.keyHubs || [])],
+      },
+      founderEmail: founderEmail.trim() || undefined,
+    };
+
+    const finalName = startupName.trim() || `${domains[0] || "NextGen"} Venture`;
+    const finalProblem = customContext.trim() || `Lack of high-quality, transparent, and sustainable solutions in ${domains.join(", ")}`;
+
+    const directIdea: StartupIdea = {
+      id: `idea-${Date.now()}`,
+      name: finalName,
+      tagline: `High-Impact Solution for ${domains[0] || "Market"}`,
+      domain: domains[0] || "Commerce",
+      businessType: resolvedBusinessType,
+      problemStatement: finalProblem,
+      solution: `An innovative and operationally grounded business model delivering direct customer value for ${domains.join(", ")}...`,
+      targetPersona: {
+        title: targetAudience.trim() || "Target Customer",
+        painPoints: ["High operational overhead", "Fragmented legacy options", "Lack of verified quality"],
+        willingnessToPay: "₹500 - ₹2,500 / order or monthly service",
+      },
+      whyNow: "Changing consumer preferences toward authentic quality, local sustainability, and transparent supply chains",
+      innovationMoat: "Proprietary formulation/operations, direct grower/producer partnerships, and customer loyalty retention",
+      tags: [...domains, businessType || "Commercial"],
+      initialFeasibilityScore: 90,
+    };
+
+    if (onDirectValidateIdea) {
+      onDirectValidateIdea(directIdea, profile);
+    } else {
+      onGenerate(profile);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      {/* Neat, Clean Header */}
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+          <span>Step 1 of 6: Founder Profile, Location Map &amp; Venture Vision</span>
+          {onOpenHelp && (
+            <button
+              type="button"
+              onClick={onOpenHelp}
+              className="ml-2 pl-2 border-l border-blue-200 text-emerald-700 hover:text-emerald-800 flex items-center gap-1 font-bold text-[11px] transition"
+              title="Open 14-Stage Platform Help & Founder Support"
+            >
+              <HelpCircle className="w-3 h-3 text-emerald-600" />
+              <span>Need Help?</span>
+            </button>
+          )}
+        </div>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900">
+          Launch &amp; Validate Any <span className="gradient-text">Startup Concept</span>
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          From Food &amp; Dining, D2C brands, manufacturing, and agriculture to healthcare clinics and AI software — test and validate any concept with live market sizing, competitor analysis, and cloud blueprints.
+        </p>
+      </div>
+
+      {/* 3-Step Quick Guide Banner (Clean White Card) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+        <div className="flex items-start gap-3">
+          <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200 flex-shrink-0 mt-0.5 shadow-sm">1</div>
+          <div>
+            <span className="font-bold text-slate-900 text-xs block">Choose Industry</span>
+            <span className="text-xs text-slate-600 leading-normal">Click a sector below to auto-fill templates, or enter custom details.</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <div className="w-7 h-7 rounded-xl bg-cyan-50 text-cyan-700 font-bold text-xs flex items-center justify-center border border-cyan-200 flex-shrink-0 mt-0.5 shadow-sm">2</div>
+          <div>
+            <span className="font-bold text-slate-900 text-xs block">Enter Your Vision</span>
+            <span className="text-xs text-slate-600 leading-normal">Describe the problem you solve, target buyer, and your budget.</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center border border-emerald-200 flex-shrink-0 mt-0.5 shadow-sm">3</div>
+          <div>
+            <span className="font-bold text-slate-900 text-xs block">Get Full Audit</span>
+            <span className="text-xs text-slate-600 leading-normal">Instant TAM sizing, competitor battlecards, cloud costs, and MVP sprint.</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 1. Industry Category Picker Cards */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <Compass className="w-4 h-4 text-blue-600" />
+            <span>Select Industry Sector</span>
+          </label>
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setSectorFilter("belagavi")}
+              className={`px-3 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                sectorFilter === "belagavi"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Belagavi 4 Core Sectors
+            </button>
+            <button
+              type="button"
+              onClick={() => setSectorFilter("all")}
+              className={`px-3 py-1 rounded-lg font-medium text-xs transition cursor-pointer ${
+                sectorFilter === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All Industry Sectors
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(sectorFilter === "belagavi"
+            ? INDUSTRY_CATEGORIES.filter((c) => ["food", "education", "wellness", "construction"].includes(c.id))
+            : INDUSTRY_CATEGORIES
+          ).map((cat) => {
+            const Icon = cat.icon;
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleSelectCategory(cat)}
+                className={`p-3.5 rounded-2xl border text-left transition relative flex flex-col justify-between gap-2.5 cursor-pointer group ${
+                  isSelected
+                    ? `${cat.activeColor} shadow-md ring-2 ring-blue-500/30 scale-[1.02]`
+                    : `bg-white border-slate-200 text-slate-700 shadow-sm ${cat.color} hover:bg-slate-50`
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 group-hover:scale-105 transition">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  {isSelected && (
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold leading-tight text-slate-900 group-hover:text-blue-700 transition">{cat.label}</div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">{cat.badge}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Form Container (Clean Crisp White Card) */}
+      <form
+        onSubmit={handleGenerate}
+        className="rounded-3xl p-6 sm:p-9 space-y-6 shadow-sm border border-slate-200 bg-white relative"
+      >
+        {/* 1. Core Idea / Problem Statement (Full Width) */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-800 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              Startup Idea or Problem to Solve
+            </span>
+            <span className="text-[10px] text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">Optional / Leave blank for AI synthesis</span>
+          </label>
+          <textarea
+            rows={3}
+            value={customContext}
+            onChange={(e) => setCustomContext(e.target.value)}
+            placeholder="Describe what you want to build or the problem you are solving (e.g. Specialty single-origin micro-roastery cafe chain, bamboo tableware brand, solar cold storage for farmers, or B2B SaaS)..."
+            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition resize-none leading-relaxed shadow-sm"
+          />
+          {hasMismatch && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 animate-pulse" />
+                <span>
+                  Notice: Your problem statement belongs to <strong>{matchingCategory.label}</strong>, but domain is set to <strong>{domainsInput}</strong>.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSelectCategory(matchingCategory)}
+                className="px-3 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold border border-amber-300 text-[11px] transition cursor-pointer flex-shrink-0"
+              >
+                Auto-Align to {matchingCategory.label}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 2-Column Clean Entries Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Target Industry & Domains */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-blue-600" />
+              Target Domain &amp; Industry *
+            </label>
+            <input
+              type="text"
+              required
+              value={domainsInput}
+              onChange={(e) => setDomainsInput(e.target.value)}
+              placeholder="e.g. Food & Beverage, D2C, Agriculture, Healthcare"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition shadow-sm"
+            />
+            <span className="text-[10px] text-slate-500">Industry or product category</span>
+          </div>
+
+          {/* Business Model / Type */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5 text-blue-600" />
+              Business Model Type *
+            </label>
+            <select
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition shadow-sm cursor-pointer"
+            >
+              <option value="" disabled className="text-slate-500">
+                Select business model type...
+              </option>
+              <option value="Food & Beverage / Cafe">
+                🍽️ Food &amp; Beverage / Cafe / Dining
+              </option>
+              <option value="Construction & Infrastructure">
+                🏗️ Construction &amp; Infrastructure
+              </option>
+              <option value="Turnkey Contracting & Field Services">
+                🔨 Turnkey Contracting &amp; Field Services
+              </option>
+              <option value="Physical Products / D2C">
+                📦 Physical Products &amp; D2C Brand
+              </option>
+              <option value="Manufacturing & Hardware">
+                🏭 Manufacturing &amp; Hardware
+              </option>
+              <option value="Agriculture & Green Ops">
+                🌾 Agriculture &amp; Farming
+              </option>
+              <option value="Healthcare & Wellness">
+                🏥 Healthcare Clinics &amp; Wellness
+              </option>
+              <option value="Services & Operations">
+                🚚 Physical Services &amp; Logistics
+              </option>
+              <option value="Retail & Storefront">
+                🛍️ Retail &amp; Brick-and-Mortar Store
+              </option>
+              <option value="Offline Education & Sports">
+                🎓 Offline Education &amp; Sports
+              </option>
+              <option value="CleanTech & Green Ops">
+                ♻️ CleanTech &amp; Waste Management
+              </option>
+              <option value="Tech & Software">
+                💻 Tech, Software &amp; AI
+              </option>
+              <option value="Others" className="text-blue-700 font-semibold">
+                ✨ Others / Custom Business Model
+              </option>
+            </select>
+            {businessType === "Others" && (
+              <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <input
+                  type="text"
+                  value={customBusinessType}
+                  onChange={(e) => setCustomBusinessType(e.target.value)}
+                  placeholder="Specify custom model (e.g. Media &amp; Publishing, Agency, Franchise, Real Estate)..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-300 text-xs text-blue-950 placeholder-blue-500/60 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition font-medium"
+                />
+              </div>
+            )}
+            <span className="text-[10px] text-slate-500">Core operational model</span>
+          </div>
+
+          {/* Founder Skills & Strengths */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Rocket className="w-3.5 h-3.5 text-emerald-600" />
+              Founder Skills &amp; Capabilities *
+            </label>
+            <input
+              type="text"
+              required
+              value={skillsInput}
+              onChange={(e) => setSkillsInput(e.target.value)}
+              placeholder="e.g. Culinary Ops, Sourcing, Marketing, Sales, Engineering"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 transition shadow-sm"
+            />
+            <span className="text-[10px] text-slate-500">Execution strengths of your team</span>
+          </div>
+
+          {/* Target Customer Segment */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-cyan-600" />
+              Target Customer Segment *
+            </label>
+            <input
+              type="text"
+              required
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
+              placeholder="e.g. Urban Professionals, Homeowners, Gym-Goers, FPOs"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/15 transition shadow-sm"
+            />
+            <span className="text-[10px] text-slate-500">Primary buyer persona</span>
+          </div>
+
+          {/* Founder's Email / Gmail */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                Founder&apos;s Email / Gmail
+              </span>
+              <span className="text-[10px] text-emerald-700 font-mono font-medium">For Dossier &amp; Alerts</span>
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                value={founderEmail}
+                onChange={(e) => setFounderEmail(e.target.value)}
+                placeholder="founder@gmail.com"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 transition shadow-sm"
+              />
+              <Mail className="w-4 h-4 text-emerald-600 absolute left-3 top-2.5 pointer-events-none" />
+            </div>
+            <span className="text-[10px] text-slate-500">Associated with your 14-stage validation dossier</span>
+          </div>
+
+          {/* Launch Timeframe */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-pink-600" />
+              MVP (Minimum Viable Product) Launch Timeframe *
+            </label>
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-pink-600 focus:ring-2 focus:ring-pink-600/15 transition shadow-sm cursor-pointer"
+            >
+              <option value="" disabled className="text-slate-500">
+                Select launch timeframe...
+              </option>
+              {TIMEFRAME_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-slate-500">Target sprint duration</span>
+          </div>
+
+          {/* Budget in Indian Rupees */}
+          <div className="space-y-2 sm:col-span-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                <IndianRupee className="w-3.5 h-3.5 text-cyan-600" />
+                Initial Budget &amp; Runway (in ₹ Rupees) *
+              </label>
+              <span className="text-[10px] text-cyan-800 font-mono font-semibold px-2 py-0.5 rounded bg-cyan-100 border border-cyan-200">INR (Indian Rupee - ₹)</span>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                placeholder="e.g. ₹5,00,000 Bootstrapped, ₹25,00,000 Seed Angel, ₹10 Lakhs..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/15 transition font-medium shadow-sm"
+              />
+              <IndianRupee className="w-4 h-4 text-cyan-600 absolute left-3 top-3 pointer-events-none" />
+            </div>
+            {/* Rupee Quick Pill Presets */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Presets:</span>
+              {BUDGET_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setBudget(p.value)}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 border ${
+                    budget === p.value
+                      ? "bg-blue-600 border-blue-600 text-white font-semibold shadow-sm ring-1 ring-blue-600/30"
+                      : "bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Target Launch Hub / Ecosystem with Free Google Maps Belagavi Competitor Radar */}
+          <div className="space-y-3 sm:col-span-2 bg-slate-50 p-4 sm:p-5 rounded-3xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Globe2 className="w-4 h-4 text-blue-600" />
+                  <span>Target Launch Hub: Belagavi (Belgaum), Karnataka</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Configured for Belagavi Tier-2 ecosystem with live Google Map competitor telemetry across the 4 key sectors.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBelagaviMap(!showBelagaviMap)}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border ${
+                    showBelagaviMap
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>{showBelagaviMap ? "Hide Google Map" : "Show Belagavi Google Map"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Dedicated Belagavi Area / Neighborhood Input Selector */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-blue-200/90 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-rose-600" />
+                  <span>Belagavi Specific Area / Locality *</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-mono font-semibold">
+                    Launch Neighborhood
+                  </span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Active Area: <strong className="text-blue-700">{resolvedBelagaviArea}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Area Dropdown */}
+                <div>
+                  <select
+                    value={belagaviArea}
+                    onChange={(e) => {
+                      setBelagaviArea(e.target.value);
+                      if (e.target.value !== "custom") {
+                        setCustomBelagaviArea("");
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition cursor-pointer shadow-sm"
+                  >
+                    {BELAGAVI_AREAS.filter((a) => a.id !== "all").map((a) => (
+                      <option key={a.id} value={a.name}>
+                        📍 {a.name} ({a.pincode})
+                      </option>
+                    ))}
+                    <option value="All Belagavi (Full City)">🌐 All Belagavi (Full City)</option>
+                    <option value="custom">✏️ Other Specific Street / Colony...</option>
+                  </select>
+                </div>
+
+                {/* Custom Area / Street Input */}
+                <div>
+                  <input
+                    type="text"
+                    value={customBelagaviArea}
+                    onChange={(e) => {
+                      setCustomBelagaviArea(e.target.value);
+                      if (belagaviArea !== "custom") {
+                        setBelagaviArea("custom");
+                      }
+                    }}
+                    placeholder={
+                      belagaviArea === "custom"
+                        ? "Type street / colony (e.g. Angol, Hindwadi 3rd Cross, Peeranwadi)..."
+                        : "Or type custom street / colony here..."
+                    }
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition shadow-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Area Shortcuts */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase font-mono mr-1">Quick Select:</span>
+                {["Tilakwadi / Congress Rd", "Udyambag & Machhe", "Nehru Nagar / JNMC", "Camp & College Road", "Khade Bazar & Shahapur", "Kakati (NH-48 Belt)", "Sadashiv Nagar / Civil Hospital"].map((areaName) => (
+                  <button
+                    key={areaName}
+                    type="button"
+                    onClick={() => {
+                      setBelagaviArea(areaName);
+                      setCustomBelagaviArea("");
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border cursor-pointer ${
+                      belagaviArea === areaName && !customBelagaviArea
+                        ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                    }`}
+                  >
+                    {areaName.split(" ")[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Metrics Bar for Belagavi */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              <div className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-[11px] shadow-sm">
+                <span className="text-slate-500 block text-[9px] uppercase font-mono font-semibold">Territory</span>
+                <span className="text-slate-900 font-bold truncate block">{resolvedBelagaviArea}</span>
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-[11px] shadow-sm">
+                <span className="text-slate-500 block text-[9px] uppercase font-mono font-semibold">Ecosystem Score</span>
+                <span className="text-emerald-700 font-bold">86/100 (Tier-2 Hub)</span>
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-[11px] shadow-sm">
+                <span className="text-slate-500 block text-[9px] uppercase font-mono font-semibold">Talent Corridor</span>
+                <span className="text-slate-900 font-semibold truncate">VTU &amp; KLE Medical Hub</span>
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-[11px] shadow-sm">
+                <span className="text-slate-500 block text-[9px] uppercase font-mono font-semibold">Est. CAC Range</span>
+                <span className="text-emerald-700 font-bold">₹2,500 - ₹5,800</span>
+              </div>
+            </div>
+
+            {/* Embedded Belagavi Google Maps (Map Only - Clean, no competitor cards during input) */}
+            {showBelagaviMap && (
+              <div className="pt-2 animate-in fade-in duration-300">
+                <BelagaviGoogleMap
+                  mapOnly={true}
+                  activeSector={activeSectorKey}
+                  initialArea={resolvedBelagaviArea}
+                  onAreaChange={(areaName) => {
+                    setBelagaviArea(areaName);
+                    setCustomBelagaviArea("");
+                    setTargetLocation((prev) => ({
+                      ...(prev || BELAGAVI_LOCATION),
+                      city: areaName.includes("All") ? "Belagavi (Belgaum)" : `Belagavi (${areaName})`,
+                      keyHubs: [areaName, ...(BELAGAVI_LOCATION.keyHubs || [])],
+                    }));
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Optional: Startup Name (if already decided) */}
+          <div className="space-y-1.5 sm:col-span-2 pt-2 border-t border-slate-200">
+            <label className="text-xs font-semibold text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                Startup Name (Optional)
+              </span>
+              <span className="text-[10px] text-slate-500">Leave blank if exploring concepts</span>
+            </label>
+            <input
+              type="text"
+              value={startupName}
+              onChange={(e) => setStartupName(e.target.value)}
+              placeholder="e.g. LedgerPulse AI, OmniCare Health, DevPulse"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* Action Button Row */}
+        <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
+          {/* Direct validation button if user entered a specific name/problem */}
+          {customContext.trim().length > 10 && (
+            <button
+              type="button"
+              onClick={handleDirectValidate}
+              disabled={isLoading}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+            >
+              <Zap className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Validate This Exact Concept Directly</span>
+            </button>
+          )}
+
+          {/* Primary Action Button (Royal Blue from Karnataka SSP Portal) */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#243d78] hover:bg-[#1a2d5a] text-white font-semibold text-xs sm:text-sm shadow-md border border-[#12224d] transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Synthesizing Market &amp; Cloud Feasibility...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-blue-200" />
+                <span>Generate Startup Validation &amp; Market Output</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
